@@ -6,7 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import QuestionCard from "@/components/QuestionCard";
 import { mockAptitudeQuestions, mockUser, mockOverallStats } from "@/lib/mockData";
 import type { AptitudeFeedback } from "@/types";
-import { useSkillContext } from "@/context/SkillContext";
+import { useScores } from "@/context/ScoreContext";
 
 type AptitudeApiResult = {
   isCorrect: boolean;
@@ -68,7 +68,7 @@ export default function AptitudePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState<boolean[]>(Array(mockAptitudeQuestions.length).fill(false));
-  const { setAptitudeScore } = useSkillContext();
+  const { scores, updateScore } = useScores();
 
   const currentQuestion = mockAptitudeQuestions[currentIndex];
   const totalAnswered = answered.filter(Boolean).length;
@@ -120,7 +120,11 @@ export default function AptitudePage() {
       };
 
       setFeedback(result);
-      setAptitudeScore(isCorrect ? 10 : 5);
+      if (isCorrect) {
+        updateScore("aptitude", scores.aptitude + 2);
+      } else {
+        updateScore("aptitude", scores.aptitude - 1);
+      }
       if (isCorrect) setScore((s) => s + 1);
       const newAnswered = [...answered];
       newAnswered[currentIndex] = true;

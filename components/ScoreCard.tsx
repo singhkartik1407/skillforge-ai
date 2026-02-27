@@ -63,9 +63,11 @@ export default function ScoreCard({
   const percentage = Math.round((score / maxScore) * 100);
 
   return (
-    <div className={`bg-gray-900 border ${config.borderColor} rounded-2xl p-5 hover:border-opacity-50 transition-all duration-300 group`}>
+    <div
+      className={`bg-gray-900/55 backdrop-blur-xl border ${config.borderColor} rounded-2xl p-5 transition-all duration-300 group hover:-translate-y-0.5 hover:shadow-[0_18px_60px_-35px_rgba(0,0,0,0.85)]`}
+    >
       <div className="flex items-start justify-between mb-4">
-        <div className={`p-2.5 rounded-xl ${config.bgColor} ${config.textColor}`}>
+        <div className={`p-2.5 rounded-xl ${config.bgColor} ${config.textColor} shadow-[0_0_0_1px_rgba(255,255,255,0.06)]`}>
           {config.icon}
         </div>
         <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
@@ -105,9 +107,9 @@ export default function ScoreCard({
           <span>Progress</span>
           <span className={config.textColor}>{percentage}%</span>
         </div>
-        <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+        <div className="h-2 bg-gray-800 rounded-full overflow-hidden shadow-inner">
           <div
-            className={`h-full bg-gradient-to-r ${config.color} rounded-full transition-all duration-1000 ease-out`}
+            className={`h-full bg-gradient-to-r ${config.color} rounded-full transition-all duration-1000 ease-out motion-safe:animate-pulse`}
             style={{ width: `${percentage}%` }}
           />
         </div>

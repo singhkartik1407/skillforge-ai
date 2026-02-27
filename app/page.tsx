@@ -80,9 +80,9 @@ const steps = [
 ];
 
 const stats = [
-  { value: "10K+", label: "Active Learners" },
-  { value: "700+", label: "Practice Problems" },
-  { value: "94%", label: "Placement Rate" },
+  { value: "1K+", label: "Active Learners" },
+  { value: "200+", label: "Practice Problems" },
+  { value: "90%", label: "Placement Rate" },
   { value: "4.9★", label: "User Rating" },
 ];
 
@@ -152,13 +152,13 @@ export default function LandingPage() {
         <div className="absolute top-20 right-1/4 w-[250px] h-[250px] bg-indigo-400/8 rounded-full blur-[80px] pointer-events-none" />
 
         <div className="max-w-5xl mx-auto text-center relative z-10">
-          <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium px-4 py-1.5 rounded-full mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-            AI-Powered Skill Development · Now in Beta
-          </div>
+          
+            {/* <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" /> */}
+            {/* AI-Powered Skill Development · Now in Beta */}
+          
 
           <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-            AI-Based Holistic{" "}
+            AI-Based {" "}
             <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-purple-400 bg-clip-text text-transparent">
               Skill Development
             </span>{" "}
@@ -366,7 +366,7 @@ export default function LandingPage() {
             </div>
             <span className="text-sm text-gray-400">SkillForge AI</span>
           </div>
-          <p className="text-xs text-gray-600">© 2026 SkillForge AI. Built for Vibethon Hackathon.</p>
+          <p className="text-xs text-gray-600">© 2026 SkillForge AI. Built for Vibethon.</p>
           <div className="flex items-center gap-4">
             <span className="text-xs text-gray-600">Privacy</span>
             <span className="text-xs text-gray-600">Terms</span>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { OverallStats } from "@/types";
+import { useScores } from "@/context/ScoreContext";
 
 interface SidebarProps {
   stats?: OverallStats;
@@ -60,6 +61,7 @@ const moduleItems = [
 
 export default function Sidebar({ stats }: SidebarProps) {
   const pathname = usePathname();
+  const { scores } = useScores();
 
   const isActive = (href: string) => pathname === href;
 
@@ -120,36 +122,36 @@ export default function Sidebar({ stats }: SidebarProps) {
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-400">Coding</span>
-                <span className="text-indigo-400 font-medium">{stats?.codingScore ?? 78}%</span>
+                  <span className="text-indigo-400 font-medium">{Math.round(scores.coding)}%</span>
               </div>
               <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.codingScore ?? 78}%` }}
+                    className="h-2 rounded bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-700 ease-out"
+                    style={{ width: `${scores.coding}%` }}
                 />
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-400">Aptitude</span>
-                <span className="text-emerald-400 font-medium">{stats?.aptitudeScore ?? 85}%</span>
+                  <span className="text-emerald-400 font-medium">{Math.round(scores.aptitude)}%</span>
               </div>
               <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.aptitudeScore ?? 85}%` }}
+                    className="h-2 rounded bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-700 ease-out"
+                    style={{ width: `${scores.aptitude}%` }}
                 />
               </div>
             </div>
             <div>
               <div className="flex justify-between text-xs mb-1">
                 <span className="text-gray-400">Communication</span>
-                <span className="text-amber-400 font-medium">{stats?.communicationScore ?? 72}%</span>
+                  <span className="text-amber-400 font-medium">{Math.round(scores.communication)}%</span>
               </div>
               <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-1000"
-                  style={{ width: `${stats?.communicationScore ?? 72}%` }}
+                    className="h-2 rounded bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-700 ease-out"
+                    style={{ width: `${scores.communication}%` }}
                 />
               </div>
             </div>

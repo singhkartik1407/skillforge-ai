@@ -6,7 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import FeedbackPanel from "@/components/FeedbackPanel";
 import { mockCommunicationPrompts, mockUser, mockOverallStats } from "@/lib/mockData";
 import type { CommunicationFeedback } from "@/types";
-import { useSkillContext } from "@/context/SkillContext";
+import { useScores } from "@/context/ScoreContext";
 
 interface HFCommResult {
   grammar: number;
@@ -42,7 +42,7 @@ export default function CommunicationPage() {
   const [feedback, setFeedback] = useState<CommunicationFeedback | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setCommunicationScore } = useSkillContext();
+  const { updateScore } = useScores();
 
   const currentPrompt = mockCommunicationPrompts[selectedPromptIndex];
   const wordCount = answer.trim() ? answer.trim().split(/\s+/).filter(Boolean).length : 0;
@@ -79,7 +79,7 @@ export default function CommunicationPage() {
         return;
       }
 
-      setCommunicationScore(data.overall);
+      updateScore("communication", data.overall);
       setFeedback(mapToFeedback(data, wordCount));
     } catch {
       setError("Network error — could not reach the AI service. Please try again.");

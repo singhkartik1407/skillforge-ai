@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ScoreCard from "@/components/ScoreCard";
@@ -17,7 +17,32 @@ import {
 } from "@/lib/mockData";
 import type { ModuleType } from "@/types";
 import Link from "next/link";
-import { useSkillContext } from "@/context/SkillContext";
+import { useScores } from "@/context/ScoreContext";
+
+function useCountUp(target: number, durationMs: number, decimals: number) {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const from = 0;
+    const to = target;
+
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = from + (to - from) * eased;
+      const factor = Math.pow(10, decimals);
+      setValue(Math.round(next * factor) / factor);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, durationMs, decimals]);
+
+  return value;
+}
 
 const moduleIconMap: Record<ModuleType, React.ReactNode> = {
   coding: (
@@ -48,14 +73,83 @@ const moduleColorMap: Record<ModuleType, string> = {
 export default function DashboardPage() {
   const user = mockUser;
   const stats = mockOverallStats;
-  const { codingScore, aptitudeScore, communicationScore } = useSkillContext();
+  const { scores, overall } = useScores();
+  const codingScore = scores.coding;
+  const aptitudeScore = scores.aptitude;
+  const communicationScore = scores.communication;
 
-  const overall = useMemo(() => {
-    return (codingScore + aptitudeScore + communicationScore) / 3;
-  }, [codingScore, aptitudeScore, communicationScore]);
+  // Premium demo metrics (fallbacks when live scores are missing).
+  const demoTop = {
+    problemsSolved: 128,
+    hoursPracticed: 52,
+    overallScore: 78.4,
+    trendValue: "+5%",
+    trendText: "Performance improving",
+  } as const;
+
+  const demoModules = {
+    coding: { score: 8.2, max: 10, trend: "+5%" },
+    aptitude: { score: 7.6, max: 10, trend: "+3%" },
+    communication: { score: 74, max: 100, trend: "+2%" },
+    overallAvg: { score: 7.8, label: "Overall Average" },
+  } as const;
+
+  const demoRadar = [
+    { subject: "Problem Solving", score: 84, fullMark: 100 },
+    { subject: "Accuracy", score: 78, fullMark: 100 },
+    { subject: "Speed", score: 70, fullMark: 100 },
+    { subject: "Communication", score: 74, fullMark: 100 },
+    { subject: "Logical Thinking", score: 80, fullMark: 100 },
+  ];
+
+  const [momentum, setMomentum] = useState({
+    coding: 0,
+    aptitude: 0,
+    communication: 0,
+  });
+  const prevScoresRef = useRef<{
+    coding: number;
+    aptitude: number;
+    communication: number;
+  } | null>(null);
 
   const hasScores = codingScore > 0 || aptitudeScore > 0 || communicationScore > 0;
-  const lastSavedRef = useRef<string | null>(null);
+
+  const displayTop = {
+    problemsSolved: demoTop.problemsSolved,
+    hoursPracticed: demoTop.hoursPracticed,
+    overallScore: overall,
+    trendValue: demoTop.trendValue,
+    trendText: demoTop.trendText,
+  };
+
+  const animatedProblems = useCountUp(displayTop.problemsSolved, 900, 0);
+  const animatedHours = useCountUp(displayTop.hoursPracticed, 900, 0);
+  const animatedOverall = useCountUp(displayTop.overallScore, 1000, 1);
+
+  useEffect(() => {
+    const prev = prevScoresRef.current;
+    if (!prev) {
+      prevScoresRef.current = {
+        coding: codingScore,
+        aptitude: aptitudeScore,
+        communication: communicationScore,
+      };
+      return;
+    }
+
+    setMomentum({
+      coding: Math.round(codingScore - prev.coding),
+      aptitude: Math.round(aptitudeScore - prev.aptitude),
+      communication: Math.round(communicationScore - prev.communication),
+    });
+
+    prevScoresRef.current = {
+      coding: codingScore,
+      aptitude: aptitudeScore,
+      communication: communicationScore,
+    };
+  }, [codingScore, aptitudeScore, communicationScore]);
 
   type ScoreRow = {
     id: string;
@@ -81,32 +175,7 @@ export default function DashboardPage() {
   const [isInsightLoading, setIsInsightLoading] = useState(false);
   const [insightError, setInsightError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!hasScores || overall <= 0) return;
-
-    const payload = {
-      coding: codingScore,
-      aptitude: aptitudeScore,
-      communication: communicationScore,
-      overall,
-    };
-
-    const payloadKey = JSON.stringify(payload);
-    if (lastSavedRef.current === payloadKey) return;
-    lastSavedRef.current = payloadKey;
-
-    (async () => {
-      try {
-        await fetch("/api/save-scores", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } catch {
-        // best-effort persistence for hackathon demo
-      }
-    })();
-  }, [codingScore, aptitudeScore, communicationScore, overall, hasScores]);
+  // Supabase persistence is handled centrally by ScoreProvider.updateScore()
 
   useEffect(() => {
     (async function fetchScores() {
@@ -175,6 +244,20 @@ export default function DashboardPage() {
     ? "bg-red-500/10 border-red-500/30 text-red-300"
     : "bg-white/5 border-white/10 text-gray-400";
 
+  const demoInsight = {
+    strongest: "Problem Solving",
+    weakest: "Speed",
+    careerSuggestion:
+      "Based on your balanced analytical and coding skills, you are well suited for Backend Development or Software Engineering roles.",
+    recommendations: [
+      "Practice timed coding drills.",
+      "Improve verbal articulation for interviews.",
+      "Solve medium-level DSA daily.",
+    ],
+  };
+
+  const displayInsight = insight ?? demoInsight;
+
   return (
     <div className="flex flex-col h-screen bg-gray-950">
       <Navbar user={user} />
@@ -195,18 +278,40 @@ export default function DashboardPage() {
                 </p>
               </div>
               <div className="flex gap-3">
-                <div className="bg-gray-900 border border-white/10 rounded-xl px-4 py-2 text-center">
-                  <p className="text-xl font-bold text-white">{stats.problemsSolved}</p>
-                  <p className="text-xs text-gray-500">Problems Solved</p>
-                </div>
-                <div className="bg-gray-900 border border-white/10 rounded-xl px-4 py-2 text-center">
-                  <p className="text-xl font-bold text-white">{stats.hoursSpent}h</p>
-                  <p className="text-xs text-gray-500">Hours Practiced</p>
-                </div>
-                <div className="bg-gray-900 border border-white/10 rounded-xl px-4 py-2 text-center">
-                  <p className="text-xl font-bold text-indigo-400">{overall.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">Overall Score</p>
-                </div>
+                {[
+                  {
+                    label: "Problems Solved",
+                    value: `${animatedProblems}`,
+                    accent: "text-white",
+                  },
+                  {
+                    label: "Hours Practiced",
+                    value: `${animatedHours}h`,
+                    accent: "text-white",
+                  },
+                  {
+                    label: "Overall Score",
+                    value: `${animatedOverall.toFixed(1)}`,
+                    accent: "text-indigo-300",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="bg-gray-900/55 backdrop-blur-xl border border-white/10 rounded-2xl px-4 py-3 text-center shadow-[0_18px_60px_-40px_rgba(0,0,0,0.85)] hover:shadow-[0_22px_70px_-40px_rgba(99,102,241,0.25)] transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                      <p className={`text-xl font-bold ${item.accent}`}>{item.value}</p>
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m18 15-6-6-6 6" />
+                        </svg>
+                        {displayTop.trendValue}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">{item.label}</p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">{displayTop.trendText}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -229,24 +334,24 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <ScoreCard
               module="coding"
-              score={codingScore}
-              maxScore={10}
-              trend="up"
-              trendValue="+5%"
+              score={Math.round(codingScore)}
+              maxScore={100}
+              trend={momentum.coding > 0 ? "up" : momentum.coding < 0 ? "down" : "stable"}
+              trendValue={`${momentum.coding >= 0 ? "+" : ""}${momentum.coding}%`}
             />
             <ScoreCard
               module="aptitude"
-              score={aptitudeScore}
-              maxScore={10}
-              trend="up"
-              trendValue="+3%"
+              score={Math.round(aptitudeScore)}
+              maxScore={100}
+              trend={momentum.aptitude > 0 ? "up" : momentum.aptitude < 0 ? "down" : "stable"}
+              trendValue={`${momentum.aptitude >= 0 ? "+" : ""}${momentum.aptitude}%`}
             />
             <ScoreCard
               module="communication"
-              score={communicationScore}
+              score={Math.round(communicationScore)}
               maxScore={100}
-              trend="stable"
-              trendValue="0%"
+              trend={momentum.communication > 0 ? "up" : momentum.communication < 0 ? "down" : "stable"}
+              trendValue={`${momentum.communication >= 0 ? "+" : ""}${momentum.communication}%`}
             />
             <div className="bg-gray-900 border border-white/10 rounded-2xl p-5 hover:border-opacity-50 transition-all duration-300">
               <div className="flex items-start justify-between mb-4">
@@ -266,7 +371,7 @@ export default function DashboardPage() {
 
               <div className="mb-3">
                 <div className="flex items-end gap-1">
-                  <span className="text-3xl font-bold text-white">{overall.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-white">{overall.toFixed(1)}</span>
                 </div>
                 <p className="text-sm text-gray-400 mt-0.5">Overall (average)</p>
               </div>
@@ -286,12 +391,63 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Momentum */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="lg:col-span-2 bg-gray-900/55 backdrop-blur-xl border border-white/10 rounded-2xl p-5 shadow-[0_18px_60px_-40px_rgba(0,0,0,0.85)]">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-white">Momentum</h3>
+                <span className="text-xs text-gray-500">Weekly Growth</span>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { label: "Coding", value: momentum.coding, color: "indigo" as const },
+                  { label: "Aptitude", value: momentum.aptitude, color: "emerald" as const },
+                  { label: "Communication", value: momentum.communication, color: "amber" as const },
+                ].map((m) => (
+                  <div key={m.label} className="flex items-center gap-3">
+                    <div className="w-24 text-sm text-gray-300">{m.label}</div>
+                    <div className="flex-1 h-2.5 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${
+                          m.color === "indigo"
+                            ? "from-indigo-500 to-violet-500"
+                            : m.color === "emerald"
+                            ? "from-emerald-500 to-teal-500"
+                            : "from-amber-500 to-orange-500"
+                        } transition-all duration-700 ease-out`}
+                        style={{ width: `${Math.min(Math.abs(m.value) * 20, 100)}%` }}
+                      />
+                    </div>
+                    <div className={`text-xs font-semibold w-12 text-right ${
+                      m.value > 0 ? "text-emerald-400" : m.value < 0 ? "text-red-400" : "text-gray-500"
+                    }`}>
+                      {m.value >= 0 ? "+" : ""}{m.value}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-600/10 via-violet-600/10 to-transparent border border-indigo-500/20 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-indigo-300 mb-1">Growth narrative</p>
+              <p className="text-sm text-gray-300 leading-relaxed">
+                You’re trending upward week-over-week. Keep consistency high to convert momentum into stable performance gains.
+              </p>
+              <div className="mt-3 inline-flex items-center gap-2 text-xs bg-emerald-500/10 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m18 15-6-6-6 6" />
+                </svg>
+                Trending up {demoTop.trendValue}
+              </div>
+            </div>
+          </div>
+
           {/* Charts + AI Recommendation Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
             {/* Radar Chart */}
             <div className="lg:col-span-1 bg-gray-900 border border-white/10 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-white mb-4">Skill Radar</h3>
-              <RadarChartPlaceholder data={mockRadarData} size={200} />
+              <RadarChartPlaceholder data={demoRadar} size={270} />
             </div>
 
             {/* AI Recommendation + Overall Score */}
@@ -300,17 +456,18 @@ export default function DashboardPage() {
               <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-white">Overall Progress</h3>
-                  <span className="text-2xl font-bold text-white">{overall.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-white">{overall.toFixed(1)}</span>
                 </div>
                 <div className="space-y-3">
-                  <ProgressBar value={(codingScore / 10) * 100} label="Coding" color="indigo" size="md" />
-                  <ProgressBar value={(aptitudeScore / 10) * 100} label="Aptitude" color="emerald" size="md" />
+                  <ProgressBar value={codingScore} label="Coding" color="indigo" size="md" />
+                  <ProgressBar value={aptitudeScore} label="Aptitude" color="emerald" size="md" />
                   <ProgressBar value={communicationScore} label="Communication" color="amber" size="md" />
                 </div>
               </div>
 
               {/* AI Performance Insight */}
-              <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
+              <div className="bg-gradient-to-br from-white/[0.06] to-transparent border border-violet-500/20 rounded-2xl p-5 relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_30%_20%,rgba(168,85,247,0.18),transparent_55%)]" />
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-6 h-6 rounded-lg bg-violet-500/20 flex items-center justify-center">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -327,54 +484,46 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {!hasScores ? (
-                  <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-400">
-                    Complete modules to generate performance insights.
-                  </div>
-                ) : insightError ? (
+                {insightError ? (
                   <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-300">
                     {insightError}
                   </div>
-                ) : insight ? (
-                  <div className="space-y-4">
+                ) : (
+                  <div className="space-y-4 relative">
                     <div className="flex flex-wrap gap-2">
-                      <span className={`text-xs px-2.5 py-1 rounded-full border ${strongestTag}`}>
-                        Strongest: <span className="font-semibold">{insight.strongest || "—"}</span>
+                      <span className="text-xs px-2.5 py-1 rounded-full border bg-emerald-500/10 border-emerald-500/30 text-emerald-300">
+                        Strongest Skill: <span className="font-semibold">{displayInsight.strongest}</span>
                       </span>
-                      <span className={`text-xs px-2.5 py-1 rounded-full border ${weakestTag}`}>
-                        Weakest: <span className="font-semibold">{insight.weakest || "—"}</span>
+                      <span className="text-xs px-2.5 py-1 rounded-full border bg-red-500/10 border-red-500/30 text-red-300">
+                        Weakest Skill: <span className="font-semibold">{displayInsight.weakest}</span>
                       </span>
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 transition-transform duration-300 hover:-translate-y-0.5">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_60px_-40px_rgba(168,85,247,0.35)]">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
                         Career suggestion
                       </p>
                       <p className="text-sm text-gray-200 leading-relaxed">
-                        {insight.careerSuggestion || "—"}
+                        {displayInsight.careerSuggestion}
                       </p>
                     </div>
 
-                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 transition-transform duration-300 hover:-translate-y-0.5">
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_60px_-40px_rgba(99,102,241,0.35)]">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                         Recommendations
                       </p>
                       <ul className="space-y-1.5">
-                        {(insight.recommendations ?? []).slice(0, 6).map((rec, idx) => (
+                        {(displayInsight.recommendations ?? []).slice(0, 6).map((rec, idx) => (
                           <li key={idx} className="flex items-start gap-2 text-sm text-gray-300">
                             <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-indigo-400/80 flex-shrink-0" />
                             <span>{rec}</span>
                           </li>
                         ))}
-                        {(!insight.recommendations || insight.recommendations.length === 0) && (
+                        {(!displayInsight.recommendations || displayInsight.recommendations.length === 0) && (
                           <li className="text-sm text-gray-500">—</li>
                         )}
                       </ul>
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-gray-400">
-                    Generating insight…
                   </div>
                 )}
               </div>

@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import type { RadarDataPoint } from "@/types";
 
 interface RadarChartPlaceholderProps {
@@ -9,6 +12,7 @@ export default function RadarChartPlaceholder({ data, size = 220 }: RadarChartPl
   const center = size / 2;
   const radius = (size / 2) * 0.72;
   const levels = 4;
+  const [animateIn, setAnimateIn] = useState(false);
 
   const angleStep = (2 * Math.PI) / data.length;
 
@@ -30,8 +34,8 @@ export default function RadarChartPlaceholder({ data, size = 220 }: RadarChartPl
     };
   };
 
-  const dataPoints = data.map((d, i) => getPoint(i, d.score, d.fullMark));
-  const polygonPoints = dataPoints.map((p) => `${p.x},${p.y}`).join(" ");
+  const dataPoints = useMemo(() => data.map((d, i) => getPoint(i, d.score, d.fullMark)), [data, angleStep, center, radius]);
+  const polygonPoints = useMemo(() => dataPoints.map((p) => `${p.x},${p.y}`).join(" "), [dataPoints]);
 
   const gridPolygons = Array.from({ length: levels }, (_, level) => {
     const fraction = (level + 1) / levels;
@@ -42,6 +46,11 @@ export default function RadarChartPlaceholder({ data, size = 220 }: RadarChartPl
     });
     return pts.join(" ");
   });
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimateIn(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <div className="flex flex-col items-center">
@@ -71,17 +80,34 @@ export default function RadarChartPlaceholder({ data, size = 220 }: RadarChartPl
           );
         })}
 
-        <polygon
-          points={polygonPoints}
-          fill="rgba(99,102,241,0.2)"
-          stroke="rgba(99,102,241,0.8)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-        />
+        <g
+          style={{
+            transformOrigin: `${center}px ${center}px`,
+            transform: animateIn ? "scale(1)" : "scale(0.92)",
+            opacity: animateIn ? 1 : 0,
+            transition: "transform 900ms cubic-bezier(0.16,1,0.3,1), opacity 900ms ease",
+          }}
+        >
+          <polygon
+            points={polygonPoints}
+            fill="rgba(99,102,241,0.18)"
+            stroke="rgba(99,102,241,0.85)"
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <polygon
+            points={polygonPoints}
+            fill="none"
+            stroke="rgba(168,85,247,0.28)"
+            strokeWidth="6"
+            strokeLinejoin="round"
+            opacity="0.35"
+          />
 
-        {dataPoints.map((pt, i) => (
-          <circle key={i} cx={pt.x} cy={pt.y} r="4" fill="#6366f1" stroke="rgba(99,102,241,0.4)" strokeWidth="2" />
-        ))}
+          {dataPoints.map((pt, i) => (
+            <circle key={i} cx={pt.x} cy={pt.y} r="4" fill="#6366f1" stroke="rgba(99,102,241,0.45)" strokeWidth="2" />
+          ))}
+        </g>
 
         {data.map((d, i) => {
           const labelPt = getLabelPoint(i);

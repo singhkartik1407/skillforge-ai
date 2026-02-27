@@ -8,7 +8,7 @@ import CodeEditor from "@/components/CodeEditor";
 import FeedbackPanel from "@/components/FeedbackPanel";
 import { mockCodingQuestions, mockUser, mockOverallStats } from "@/lib/mockData";
 import type { Language, CodeEvaluation } from "@/types";
-import { useSkillContext } from "@/context/SkillContext";
+import { useScores } from "@/context/ScoreContext";
 
 const LANGUAGES: { label: string; value: Language }[] = [
   { label: "Python", value: "python" },
@@ -24,7 +24,7 @@ export default function CodingPage() {
   const [feedback, setFeedback] = useState<CodeEvaluation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { setCodingScore } = useSkillContext();
+  const { updateScore } = useScores();
 
   const currentQuestion = mockCodingQuestions[selectedQuestionIndex];
 
@@ -72,7 +72,7 @@ export default function CodingPage() {
 
       const evaluation = data as CodeEvaluation;
       setFeedback(evaluation);
-      setCodingScore(evaluation.score);
+      updateScore("coding", evaluation.score * 10);
     } catch {
       setError("Network error — could not reach the AI service. Please try again.");
     } finally {
